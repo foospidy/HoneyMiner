@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+#
+#  Script     : honeyminer
+#  Author     : foospidy
+#  License    : See LICENSE file.
+#  Description: Deploy a honeypot and a crypto currency miner together, so sweet.
+#
+
+# Variables to edit
+NON_DEFAULT_SSH_PORT=30351
+
+function options {
+	echo "OPTIONS:"
+	echo "start		Start mining and potting."
+	echo "stop-mining	Stop mining only."
+	echo "nodecheck	Check node status, e.g. up or down."
+	echo "fscheck	Check that root home directory can be written to."
+	echo "coin	Symbol of coin to mine with, this overrides what is configured in nodes.conf"
+}
+
+if [[ $# -eq 0 ]];
+then
+	options
+	exit
+fi
+
+while [[ $# -gt 0 ]];
+do
+	key="$1"
+	case $key in
+		start)
+			ACTION="start"
+			shift
+		;;
+		stop-mining)
+			ACTION="stop"
+			shift
+		;;
+		nodecheck)
+			ACTION="check"
+			shift
+		;;
+		filesystem-check)
+			ACTION="fscheck"
+			shift
+		;;
+		coin)
+			COIN="$2"
+			shift
+			shift
+		;;
+		*)
+			options
+			exit;
+			shift
+		;;
+	esac
+done
+
+IFS=$'\n'       # make newlines the only separator
+set -f          # disable globbing
+
+for node in $(grep -v "^#" conf/nodes.conf)
+do
+	ip=$(echo "$node" | cut -d' ' -f1)
+	pword=$(echo "$node" | cut -d' ' -f2)
+	user=$(echo "$node" | cut -d' ' -f3)
+	coin=$(echo "$node" | cut -d' ' -f4)
+	cores=$(echo "$node" | cut -d' ' -f5)
+
+	# check if coin override
+	if [ ! -z "$COIN" ];
+	then
+		coin=$COIN
+	fi
+
+	status="HoneyMiner ($coin): $ip"
+
+	case $ACTION in
+		start)
+			# check if node is reachable
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				# first check if node is using a non default ssh port (custom port), if not, then configure it to use a custom port
+				sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "ls > /dev/null"
+				custom_port=$?
+
+				if [ $custom_port -ne 0 ];
+				then
+					# changing default ssh port
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p22 "sed -i.bak 's/Port 22/Port $NON_DEFAULT_SSH_PORT/' /etc/ssh/sshd_config; service ssh restart"
+				fi
+
+				# check to make sure we are using the custom port for ssh, if yes, then install mining and honey potting
+				sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "ls > /dev/null"
+				custom_port=$?
+
+				if [ "$custom_port" -eq 0 ];
+				then
+					# do some crypto mining
+					port=$NON_DEFAULT_SSH_PORT
+
+					# check if minergate is installed, if not, install it
+					minergate=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "which minergate-cli")
+					if [ -z "$minergate" ];
+					then
+						status="$status Minergate not installed! Installing minergate..."
+						sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "wget https://minergate.com/download/deb-cli; dpkg -i deb-cli"
+					fi
+
+					# check if minergate is running, if not, run it
+					pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "pgrep minergate-cli")
+					if [ -z "$pid" ];
+					then
+						status="$status Minergate not running! Starting minergate..."
+						sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "nohup minergate-cli -user $user $coin $cores > minergate.log 2>&1 &"
+						pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "pgrep minergate-cli")
+					else
+						avg_hash_rate=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port 'bash -s' < scripts/avg_hash_rate.sh)
+						status="$status Average hash rate: $avg_hash_rate"
+						if [ "$(echo "$avg_hash_rate < 6" | bc -l)" -eq 1 ];
+						then
+							status="$status weak miner!"
+						fi
+					fi
+                	# do some honey potting
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "service exim4 stop"
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "wget https://gist.githubusercontent.com/foospidy/ec91df7682ee3872deeafbc8734a5d60/raw/0d2ca888d4c718fdf02054a884db300b85b5bd2f/honeydb-agent-install.sh -O honeydb-agent-install.sh;"
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "chmod +x honeydb-agent-install.sh; ./honeydb-agent-install.sh"
+					sshpass -p"$pword" scp -P$NON_DEFAULT_SSH_PORT -o StrictHostKeyChecking=no conf/agent.conf root@"$ip":/etc/honeydb/agent.conf
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "/etc/init.d/honeydb-agent start"
+					echo ""
+				fi
+			else
+				status="$status Unreachable!"
+			fi
+		;;
+
+		stop)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "pgrep minergate-cli")
+
+				if [ -z "$pid" ];
+				then
+					status="$status: Miner not running!"
+				else
+					status="$status: Stopping miner with pid $pid"
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "kill -9 $pid > /dev/null 2>&1 &"
+				fi
+			else
+				status="$status: Unreachable!"
+			fi
+		;;
+
+		check)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				status="$status: is up"
+			else
+				status="$status: is down"
+			fi
+		;;
+
+		fscheck)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "touch /root/.touch"
+				fscheck_result=$?
+
+				if [ $fscheck_result -eq 0 ];
+				then
+					status="$status: file system ok."
+				else
+					status="$status: problem writting to file system!"
+				fi
+			else
+				status="$status: is down"
+			fi
+		;;
+
+		*)
+			echo "Error: undefined action."
+			exit
+		;;
+	esac
+
+	echo "$status"
+
+ done 
