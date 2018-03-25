@@ -42,6 +42,10 @@ do
 			ACTION="stop-mining"
 			shift
 		;;
+		status-mining)
+			ACTION="status-mining"
+			shift
+		;;
 		nodecheck)
 			ACTION="check"
 			shift
@@ -185,6 +189,20 @@ do
 				fi
 			else
 				status="$status: Unreachable!"
+			fi
+		;;
+
+		status-mining)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				avg_hash_rate=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT 'bash -s' < scripts/avg_hash_rate.sh)
+				status="$status Average hash rate: $avg_hash_rate"
+				if [ "$(echo "$avg_hash_rate < 6" | bc -l)" -eq 1 ];
+				then
+					status="$status weak miner!"
+				fi
 			fi
 		;;
 
