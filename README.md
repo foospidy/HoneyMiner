@@ -32,6 +32,7 @@ Currently, with the minergate-cli tool it supports the [CryptoNote](https://mine
 - QuazarCoin ([QCN](https://coinmarketcap.com/currencies/quazarcoin/))*
 
 *inactive coins
+
 **possibly inactive coins
 
 Support for [Equihash](https://minergate.com/calculator/equihash) currencies tbd. PRs welcome!
