@@ -11,8 +11,10 @@ NON_DEFAULT_SSH_PORT=30351
 
 function options {
 	echo "OPTIONS:"
-	echo "start		Start mining and potting."
+	echo "start		Install and start mining and potting."
+	echo "sart-mining	Start mining only."
 	echo "stop-mining	Stop mining only."
+	echo "status-mining	Show status of mining."
 	echo "nodecheck	Check node status, e.g. up or down."
 	echo "fscheck	Check that root home directory can be written to."
 	echo "coin	Symbol of coin to mine with, this overrides what is configured in nodes.conf"
@@ -32,8 +34,12 @@ do
 			ACTION="start"
 			shift
 		;;
+		start-mining)
+			ACTION="start-mining"
+			shift
+		;;
 		stop-mining)
-			ACTION="stop"
+			ACTION="stop-mining"
 			shift
 		;;
 		nodecheck)
@@ -74,7 +80,7 @@ do
 		coin=$COIN
 	fi
 
-	status="HoneyMiner ($coin): $ip"
+	status="HoneyMiner: $ip"
 
 	case $ACTION in
 		start)
@@ -114,7 +120,7 @@ do
 					pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "pgrep minergate-cli")
 					if [ -z "$pid" ];
 					then
-						status="$status Minergate not running! Starting minergate..."
+						status="$status Minergate not running! Starting $coin mining."
 						sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "nohup minergate-cli -user $user $coin $cores > minergate.log 2>&1 &"
 						pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "pgrep minergate-cli")
 					else
@@ -138,7 +144,32 @@ do
 			fi
 		;;
 
-		stop)
+		start-mining)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				# check if minergate is running, if not, run it
+				pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "pgrep minergate-cli")
+				if [ -z "$pid" ];
+				then
+					status="$status Minergate not running! Starting $coin mining."
+					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "nohup minergate-cli -user $user $coin $cores > minergate.log 2>&1 &"
+					pid=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "pgrep minergate-cli")
+				else
+					avg_hash_rate=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT 'bash -s' < scripts/avg_hash_rate.sh)
+					status="$status Average hash rate: $avg_hash_rate"
+					if [ "$(echo "$avg_hash_rate < 6" | bc -l)" -eq 1 ];
+					then
+						status="$status weak miner!"
+					fi
+				fi
+			else
+				status="$status: Unreachable!"
+			fi
+		;;
+
+		stop-mining)
 			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
 
 			if [ "$reachable" -eq 0 ];
@@ -191,8 +222,8 @@ do
 			echo "Error: undefined action."
 			exit
 		;;
-	esac
+	esac;
 
 	echo "$status"
 
- done 
+ done;
