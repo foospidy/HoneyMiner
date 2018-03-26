@@ -20,6 +20,8 @@ HoneyMiner is a bash script that automates the installation of a crypto currency
 - [Minergate](https://minergate.com/) account
 - [HoneyDB](https://riskdiscovery.com/honeydb/#login) account
 
+In the conf directory, rename `agent.conf.example` to `agent.conf`. This is the honeydb-agent configuration file.
+
 ## What crypto currencies are supported?
 
 Currently, with the minergate-cli tool it supports the [CryptoNote](https://minergate.com/calculator/cryptonote) currencies:
