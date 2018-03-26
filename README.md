@@ -15,8 +15,8 @@ HoneyMiner is a bash script that automates the installation of a crypto currency
 ## What do I need to get started?
 
 1. You'll need at least one Debian or Ubuntu Linux server that you do not care about. This script needs to run as root and it sets up everything to run as root.
-2. Minergate account
-3. HoneyDB account
+2. [Minergate](https://minergate.com/) account
+3. [HoneyDB](https://riskdiscovery.com/honeydb/#login) account
 
 ## What crypto currencies are supported?
 
