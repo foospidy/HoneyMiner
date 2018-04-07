@@ -50,7 +50,7 @@ do
 			ACTION="check"
 			shift
 		;;
-		filesystem-check)
+		fscheck)
 			ACTION="fscheck"
 			shift
 		;;
