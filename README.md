@@ -22,7 +22,7 @@ HoneyMiner is a bash script that automates the installation of a crypto currency
 
 Now that you have accounts, update the configuration files in HoneyMiner's `conf` directory.
 
-- Rename `agent.conf.example` to `agent.conf`. This is the honeydb-agent (honeypot) configuration file. It will be deployed to each server you configer in `nodes.conf`.
+- Rename `agent.conf.example` to `agent.conf`. This is the honeydb-agent (honeypot) configuration file. It will be deployed to each server you configure in `nodes.conf`.
 - Rename `nodes.conf.example` to `nodes.conf`. This configration contains your server ip addresses and root password (yes, root password in clear text, remember, these are servers you don't care about). It will also contain your Minergate user id and config for mining (coin and number of cores to utlize).
 
 Example `nodes.conf`:
