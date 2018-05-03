@@ -140,6 +140,11 @@ do
 					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "wget https://gist.githubusercontent.com/foospidy/ec91df7682ee3872deeafbc8734a5d60/raw/0d2ca888d4c718fdf02054a884db300b85b5bd2f/honeydb-agent-install.sh -O honeydb-agent-install.sh;"
 					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "chmod +x honeydb-agent-install.sh; ./honeydb-agent-install.sh"
 					sshpass -p"$pword" scp -P$NON_DEFAULT_SSH_PORT -o StrictHostKeyChecking=no conf/agent.conf root@"$ip":/etc/honeydb/agent.conf
+					if [ -f "conf/services.conf" ];
+					then
+						# if a local services.conf file is present, upload it!
+						sshpass -p"$pword" scp -P$NON_DEFAULT_SSH_PORT -o StrictHostKeyChecking=no conf/services.conf root@"$ip":/etc/honeydb/services.conf
+					fi
 					sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "/etc/init.d/honeydb-agent start"
 					echo ""
 				fi
