@@ -117,6 +117,8 @@ do
 					if [ -z "$minergate" ];
 					then
 						status="$status Minergate not installed! Installing minergate..."
+						# first install pre-reqs
+						sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "apt-get intall -y libpcre16-3"
 						sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "wget https://minergate.com/download/deb-cli; dpkg -i deb-cli"
 					fi
 
