@@ -59,6 +59,10 @@ do
 			shift
 			shift
 		;;
+		reboot)
+			ACTION="reboot"
+			shift
+		;;
 		*)
 			options
 			exit;
@@ -230,6 +234,25 @@ do
 					status="$status: file system ok."
 				else
 					status="$status: problem writting to file system!"
+				fi
+			else
+				status="$status: is down"
+			fi
+		;;
+
+		reboot)
+			reachable=$(ping -c 4 "$ip" >/dev/null; echo $?)
+
+			if [ "$reachable" -eq 0 ];
+			then
+				sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$NON_DEFAULT_SSH_PORT "reboot"
+				reboot_result=$?
+
+				if [ $reboot_result -eq 0 ];
+				then
+					status="$status: reboot ok."
+				else
+					status="$status: problem rebooting!"
 				fi
 			else
 				status="$status: is down"
