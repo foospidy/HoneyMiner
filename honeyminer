@@ -127,10 +127,11 @@ do
 
 				if [ "$custom_port" -eq 0 ];
 				then
+					port=$NON_DEFAULT_SSH_PORT
+
 					if [ "$MINER" = "yes" ];
 					then
 						# do some crypto mining
-						port=$NON_DEFAULT_SSH_PORT
 
 						# check if minergate is installed, if not, install it
 						minergate=$(sshpass -p"$pword" ssh -o StrictHostKeyChecking=no root@"$ip" -p$port "which minergate-cli")
